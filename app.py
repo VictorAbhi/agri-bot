@@ -1,6 +1,7 @@
 import os
 import traceback
 import json
+import threading
 from flask import Flask, render_template, request, jsonify, Response, g
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -24,10 +25,11 @@ class AgriBotSystem:
         self.initialized = False
         self.error = None
         self.conversation_chain = None
-        self.initialize()
+        # Start initialization in a background thread
+        threading.Thread(target=self.initialize, daemon=True).start()
 
     def initialize(self):
-        """Initialize the RAG system with proper error handling"""
+        """Initialize the RAG system with proper error handling in a background thread"""
         try:
             from langchain.memory import ConversationBufferWindowMemory, ChatMessageHistory
             from langchain_pinecone import PineconeVectorStore
@@ -101,6 +103,7 @@ class AgriBotSystem:
             print(f"✗ Failed to initialize AgriBot: {self.error}")
             if self.conversation_chain is None:
                 print("⚠️ Running in fallback mode without RAG capabilities")
+            self.initialized = False
 
     def get_response_stream(self, query):
         """Get streaming response from the RAG system with token-level streaming"""
@@ -108,11 +111,11 @@ class AgriBotSystem:
             yield "data: " + json.dumps({"content": "Please provide a valid question about agriculture or crop diseases.", "done": True}) + "\n\n"
             return
 
-        try:
-            if not self.initialized:
-                yield "data: " + json.dumps({"content": "AgriBot is currently initializing. I can answer basic questions about crop diseases, but advanced features are unavailable. Please try again later.", "done": True}) + "\n\n"
-                return
+        if not self.initialized:
+            yield "data: " + json.dumps({"content": "AgriBot is still initializing. Please wait a moment and try again.", "done": True}) + "\n\n"
+            return
 
+        try:
             # Get relevant documents first
             retriever = self.conversation_chain.retriever
             docs = retriever.invoke(query.strip())
@@ -151,11 +154,10 @@ class AgriBotSystem:
         if not query or not query.strip():
             return "Please provide a valid question about agriculture or crop diseases."
 
-        try:
-            if not self.initialized:
-                return ("AgriBot is currently initializing. I can answer basic questions about crop diseases, "
-                       "but advanced features are unavailable. Please try again later.")
+        if not self.initialized:
+            return "AgriBot is still initializing. Please wait a moment and try again."
 
+        try:
             # Process the query
             response = self.conversation_chain.invoke({"question": query.strip()})
             
@@ -513,12 +515,10 @@ def get_user_stats():
         print(f"Get user stats error: {str(e)}")
         return jsonify({'error': 'Failed to get user statistics'}), 500
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+
 
 @app.route('/api/chat/stream', methods=["POST"])
-@require_auth  # Require authentication for chat
+@require_auth
 def get_bot_response_stream():
     """API endpoint for streaming chat messages"""
     try:
@@ -574,7 +574,7 @@ def get_bot_response_stream():
         }), 500
 
 @app.route('/api/chat', methods=["POST"])
-@require_auth  # Require authentication for chat
+@require_auth
 def get_bot_response():
     """API endpoint for chat messages - accepts both JSON and form data"""
     try:
@@ -626,7 +626,9 @@ def health_check():
         'rag_available': agri_bot.initialized,
         'initialization_error': agri_bot.error,
         'environment_loaded': bool(os.getenv('GOOGLE_API_KEY') and os.getenv('PINECONE_API_KEY')),
-        'supabase_configured': bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_ANON_KEY'))
+        'supabase_configured': bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_ANON_KEY')),
+        'port': os.getenv('PORT', 'not set'),
+        'startup_time': 'background initialization in progress' if not agri_bot.initialized else 'complete'
     }
     return jsonify(status)
 
