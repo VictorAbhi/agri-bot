@@ -631,4 +631,6 @@ def health_check():
     return jsonify(status)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import os
+    port = int(os.environ.get("PORT", 5000))  # Use Render's port or default to 5000 locally
+    app.run(host='0.0.0.0', port=port, debug=True)
