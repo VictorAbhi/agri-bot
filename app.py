@@ -1,6 +1,7 @@
 import os
 import traceback
 import json
+import threading
 from flask import Flask, render_template, request, jsonify, Response, g
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -22,13 +23,26 @@ supabase_manager = SupabaseManager()
 class AgriBotSystem:
     def __init__(self):
         self.initialized = False
+        self.initializing = False
         self.error = None
         self.conversation_chain = None
-        self.initialize()
+        self.initialization_lock = threading.Lock()
+        
+        # Start initialization in background thread
+        self.init_thread = threading.Thread(target=self._background_initialize, daemon=True)
+        self.init_thread.start()
 
-    def initialize(self):
-        """Initialize the RAG system with proper error handling"""
+    def _background_initialize(self):
+        """Initialize the RAG system in background thread"""
+        with self.initialization_lock:
+            if self.initialized or self.initializing:
+                return
+            
+            self.initializing = True
+            
         try:
+            print("🚀 Starting AgriBot initialization in background...")
+            
             from langchain.memory import ConversationBufferWindowMemory, ChatMessageHistory
             from langchain_pinecone import PineconeVectorStore
             from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -43,18 +57,21 @@ class AgriBotSystem:
             if not GOOGLE_API_KEY or not PINECONE_API_KEY:
                 raise ValueError("Missing required API keys (GOOGLE_API_KEY, PINECONE_API_KEY)")
 
+            print("🔧 Loading embeddings model...")
             # Initialize embeddings
             embeddings = HuggingFaceEmbeddings(
                 model_name="sentence-transformers/all-MiniLM-L6-v2",
                 model_kwargs={'device': 'cpu'}
             )
 
+            print("🔍 Connecting to Pinecone vector store...")
             # Initialize vector store
             vector_store = PineconeVectorStore.from_existing_index(
                 embedding=embeddings,
                 index_name="agri-bot"
             )
 
+            print("🤖 Initializing LLM...")
             # Initialize LLM
             llm = ChatGoogleGenerativeAI(
                 model="gemini-1.5-flash",
@@ -62,6 +79,7 @@ class AgriBotSystem:
                 google_api_key=GOOGLE_API_KEY
             )
 
+            print("💭 Setting up conversation memory...")
             # Configure memory
             message_history = ChatMessageHistory()
             memory = ConversationBufferWindowMemory(
@@ -81,6 +99,7 @@ class AgriBotSystem:
                 "Question: {question}"
             )
 
+            print("⚡ Creating conversation chain...")
             # Create conversation chain
             self.conversation_chain = ConversationalRetrievalChain.from_llm(
                 llm=llm,
@@ -93,14 +112,33 @@ class AgriBotSystem:
                 }
             )
 
-            self.initialized = True
-            print("✓ AgriBot RAG system initialized successfully")
+            with self.initialization_lock:
+                self.initialized = True
+                self.initializing = False
+            
+            print("✅ AgriBot RAG system initialized successfully!")
 
         except Exception as e:
             self.error = str(e)
-            print(f"✗ Failed to initialize AgriBot: {self.error}")
-            if self.conversation_chain is None:
-                print("⚠️ Running in fallback mode without RAG capabilities")
+            with self.initialization_lock:
+                self.initializing = False
+            print(f"❌ Failed to initialize AgriBot: {self.error}")
+            print("⚠️ Running in fallback mode without RAG capabilities")
+
+    def _ensure_initialized(self):
+        """Ensure the system is initialized, wait if still initializing"""
+        if self.initialized:
+            return True
+            
+        if self.initializing:
+            # Wait for initialization to complete (with timeout)
+            max_wait = 30  # 30 seconds timeout
+            wait_time = 0
+            while self.initializing and wait_time < max_wait:
+                threading.Event().wait(1)  # Wait 1 second
+                wait_time += 1
+            
+        return self.initialized
 
     def get_response_stream(self, query):
         """Get streaming response from the RAG system with token-level streaming"""
@@ -109,8 +147,12 @@ class AgriBotSystem:
             return
 
         try:
-            if not self.initialized:
-                yield "data: " + json.dumps({"content": "AgriBot is currently initializing. I can answer basic questions about crop diseases, but advanced features are unavailable. Please try again later.", "done": True}) + "\n\n"
+            # Check if initialization is complete
+            if not self._ensure_initialized():
+                if self.initializing:
+                    yield "data: " + json.dumps({"content": "AgriBot is still initializing, please wait a moment and try again...", "done": True}) + "\n\n"
+                else:
+                    yield "data: " + json.dumps({"content": "AgriBot initialization failed. I can provide basic agricultural advice, but advanced features are unavailable.", "done": True}) + "\n\n"
                 return
 
             # Get relevant documents first
@@ -152,9 +194,12 @@ class AgriBotSystem:
             return "Please provide a valid question about agriculture or crop diseases."
 
         try:
-            if not self.initialized:
-                return ("AgriBot is currently initializing. I can answer basic questions about crop diseases, "
-                       "but advanced features are unavailable. Please try again later.")
+            # Check if initialization is complete
+            if not self._ensure_initialized():
+                if self.initializing:
+                    return "AgriBot is still initializing, please wait a moment and try again..."
+                else:
+                    return "AgriBot initialization failed. I can provide basic agricultural advice, but advanced features are unavailable."
 
             # Process the query
             response = self.conversation_chain.invoke({"question": query.strip()})
@@ -169,7 +214,15 @@ class AgriBotSystem:
             return ("I encountered an error while processing your question. "
                    "Please try asking about specific crop diseases like tomato blight or wheat rust.")
 
-# Initialize the AgriBot system
+    def get_status(self):
+        """Get current initialization status"""
+        return {
+            'initialized': self.initialized,
+            'initializing': self.initializing,
+            'error': self.error
+        }
+
+# Initialize the AgriBot system (will start background initialization)
 agri_bot = AgriBotSystem()
 
 @app.route('/api/auth/signup', methods=['POST'])
@@ -513,6 +566,19 @@ def get_user_stats():
         print(f"Get user stats error: {str(e)}")
         return jsonify({'error': 'Failed to get user statistics'}), 500
 
+@app.route('/api/agribot/status', methods=['GET'])
+def get_agribot_status():
+    """Get AgriBot initialization status"""
+    try:
+        status = agri_bot.get_status()
+        return jsonify({
+            'success': True,
+            'status': status
+        }), 200
+    except Exception as e:
+        print(f"Status check error: {str(e)}")
+        return jsonify({'error': 'Failed to get status'}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -621,16 +687,30 @@ def get_bot_response():
 @app.route('/health')
 def health_check():
     """Comprehensive health check endpoint"""
-    status = {
-        'status': 'healthy' if agri_bot.initialized else 'degraded',
-        'rag_available': agri_bot.initialized,
-        'initialization_error': agri_bot.error,
+    status = agri_bot.get_status()
+    health_status = {
+        'status': 'healthy' if status['initialized'] else ('initializing' if status['initializing'] else 'degraded'),
+        'rag_available': status['initialized'],
+        'initialization_status': 'complete' if status['initialized'] else ('in_progress' if status['initializing'] else 'failed'),
+        'initialization_error': status['error'],
         'environment_loaded': bool(os.getenv('GOOGLE_API_KEY') and os.getenv('PINECONE_API_KEY')),
         'supabase_configured': bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_ANON_KEY'))
     }
-    return jsonify(status)
+    return jsonify(health_status)
+
+@app.route('/ready')
+def readiness_check():
+    """Quick readiness check for Render deployment"""
+    return jsonify({
+        'status': 'ready',
+        'message': 'Server is running',
+        'port_detected': True
+    }), 200
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 5000))  # Use Render's port or default to 5000 locally
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Starting Flask server on port {port}...")
+    print("📡 Server will be ready immediately, AgriBot RAG system initializing in background...")
+    
+    # Server starts immediately, model loads in background
+    app.run(host='0.0.0.0', port=port, debug=False)  # Set debug=False for production
