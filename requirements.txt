@@ -6,8 +6,8 @@ python-dotenv==1.1.0
 langchain-pinecone==0.2.8
 langchain-openai==0.3.24
 langchain-community==0.3.26
-supabase==2.3.4
+supabase>=2.3,<2.5
 flask-cors==4.0.0
 bcrypt==4.1.2
 pyjwt==2.8.0
-httpx==0.27.0
+httpx>=0.25,<0.27
