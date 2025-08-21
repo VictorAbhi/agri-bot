@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 
+# Ignore Python virtual environment
+.venv/
+
 # next.js
 /.next/
 /out/

@@ -32,7 +32,7 @@ class AgriBotSystem:
             from langchain.memory import ConversationBufferWindowMemory, ChatMessageHistory
             from langchain_pinecone import PineconeVectorStore
             from langchain_community.embeddings import HuggingFaceEmbeddings
-            from langchain_google_genai import ChatGoogleGenerativeAI
+            from langchain_google_generativeai import ChatGoogleGenerativeAI
             from langchain.chains import ConversationalRetrievalChain
             from langchain_core.prompts import ChatPromptTemplate
 
