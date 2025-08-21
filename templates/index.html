@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AgriBot - AI Agriculture Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-light: #81C784;
+            --primary-dark: #388E3C;
+            --secondary: #2E7D32;
+            --light: #F1F8E9;
+            --dark: #1B5E20;
+            --gray: #757575;
+            --light-gray: #E0E0E0;
+            --white: #FFFFFF;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background-color: #F5F5F5;
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .app-container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stats-bar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--white);
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stats-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stats-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .stat-number {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--white);
+        }
+        
+        .message-container {
+            margin-bottom: 20px;
+        }
+        
+        .user-message {
+            text-align: right;
+        }
+        
+        .bot-message {
+            text-align: left;
+        }
+        
+        .message-bubble {
+            display: inline-block;
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 5px;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+            word-wrap: break-word;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message .message-bubble {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--white);
+            border-radius: 18px 18px 5px 18px;
+        }
+        
+        .bot-message .message-bubble {
+            background: var(--light);
+            color: var(--dark);
+            border-radius: 18px 18px 18px 5px;
+        }
+        
+        /* Markdown formatting styles for bot responses */
+        .bot-message .message-bubble strong {
+            font-weight: 700;
+            color: var(--secondary);
+        }
+        
+        .bot-message .message-bubble em {
+            font-style: italic;
+            color: var(--primary-dark);
+        }
+        
+        .bot-message .message-bubble ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .bot-message .message-bubble li {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+        
+        .bot-message .message-bubble p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .bot-message .message-bubble h1,
+        .bot-message .message-bubble h2,
+        .bot-message .message-bubble h3 {
+            color: var(--secondary);
+            margin: 12px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .bot-message .message-bubble code {
+            background: rgba(76, 175, 80, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: var(--gray);
+            display: block;
+            margin-top: 5px;
+        }
+        
+        .user-message .message-time {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Typing indicator styles */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 16px;
+        }
+        
+        .typing-indicator .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--gray);
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-indicator .dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator .dot:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator .dot:nth-child(3) { animation-delay: 0s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .input-container {
+            padding: 15px;
+            background: var(--white);
+            border-top: 1px solid var(--light-gray);
+        }
+        
+        .input-box {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid var(--light-gray);
+            border-radius: 25px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .message-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+        }
+        
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--white);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .send-button:active {
+            transform: scale(0.98);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .suggested-text {
+            text-align: center;
+            color: var(--gray);
+            font-size: 13px;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        
+        /* Scrollbar styling */
+        .chat-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chat-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .chat-body::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+        
+        .chat-body::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+        
+        /* Error message styles */
+        .error-message .message-bubble {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 500px) {
+            body {
+                padding: 0;
+            }
+            
+            .app-container {
+                height: 100vh;
+                border-radius: 0;
+                max-width: 100%;
+            }
+            
+            .message-bubble {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="stats-bar">
+            <div class="stats-title"><i class="fas fa-seedling"></i> AgriBot AI Assistant</div>
+            <div class="stats-subtitle">Your intelligent partner for crop disease diagnosis and management</div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">14+</div>
+                    <div class="stat-label">Crop Types</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">120+</div>
+                    <div class="stat-label">Diseases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Support</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-body" id="chat-body">
+            <div class="message-container user-message">
+                <div class="message-bubble">
+                    What causes damping-off in seedlings?
+                    <span class="message-time">19:23</span>
+                </div>
+            </div>
+            
+            <div class="message-container bot-message">
+                <div class="message-bubble">
+                    Damping-off is caused by pre-emergence damping off and seed rotting, and post-emergence damping off. Pre-emergence damping off and seed rotting cause poor seedling stands. Post-emergence damping off infects seedlings near the soil line after emergence, causing them to become soft, water-soaked, and weak, leading to their death. The provided text specifically mentions Pythium spp. as a cause in cucurbits.
+                    <span class="message-time">19:23</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <div class="suggested-text">Ask about crop diseases (e.g., What is damping-off?)</div>
+            <div class="input-box">
+                <input type="text" class="message-input" placeholder="Type your question..." autocomplete="off">
+                <button class="send-button" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Function to scroll to bottom of chat
+        function scrollToBottom() {
+            const chatBody = document.getElementById('chat-body');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+        
+        // Function to get current time string
+        function getCurrentTimeString() {
+            const date = new Date();
+            return date.getHours().toString().padStart(2, '0') + ":" + 
+                   date.getMinutes().toString().padStart(2, '0');
+        }
+        
+        // Function to add streaming message to chat
+        function addStreamingMessage(isUser, time) {
+            const messageClass = isUser ? 'user-message' : 'bot-message';
+            const messageId = 'msg-' + Date.now();
+            const messageHtml = `
+                <div class="message-container ${messageClass}" id="${messageId}">
+                    <div class="message-bubble">
+                        <div class="message-content"></div>
+                        <span class="message-time">${time}</span>
+                    </div>
+                </div>
+            `;
+            $('#chat-body').append(messageHtml);
+            scrollToBottom();
+            return messageId;
+        }
+        
+        // Function to update streaming message content with markdown support
+        function updateStreamingMessage(messageId, content) {
+            const contentElement = $(`#${messageId} .message-content`);
+            // Parse markdown and update content
+            const parsedContent = marked.parse(content);
+            contentElement.html(parsedContent);
+            scrollToBottom();
+        }
+        
+        // Function to append to streaming message content with markdown support
+        function appendToStreamingMessage(messageId, chunk) {
+            const contentElement = $(`#${messageId} .message-content`);
+            // Get current content and append new chunk
+            let currentContent = contentElement.data('raw-content') || '';
+            currentContent += chunk;
+            contentElement.data('raw-content', currentContent);
+            
+            // Parse and display updated markdown
+            const parsedContent = marked.parse(currentContent);
+            contentElement.html(parsedContent);
+            scrollToBottom();
+        }
+        
+        // Function to add message to chat with markdown support
+        function addMessage(message, isUser, time) {
+            const messageClass = isUser ? 'user-message' : 'bot-message';
+            let messageContent = message;
+            
+            // Parse markdown for bot messages
+            if (!isUser) {
+                messageContent = marked.parse(message);
+            }
+            
+            const messageHtml = `
+                <div class="message-container ${messageClass}">
+                    <div class="message-bubble">
+                        ${messageContent}
+                        <span class="message-time">${time}</span>
+                    </div>
+                </div>
+            `;
+            $('#chat-body').append(messageHtml);
+            scrollToBottom();
+        }
+        function showTypingIndicator() {
+            const typingHtml = `
+                <div class="message-container bot-message typing-indicator-container">
+                    <div class="message-bubble typing-indicator">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            `;
+            $('#chat-body').append(typingHtml);
+            scrollToBottom();
+        }
+        
+        // Function to remove typing indicator
+        function removeTypingIndicator() {
+            $('.typing-indicator-container').remove();
+        }
+        
+        // Function to get bot response with streaming from API
+        async function getBotResponseStream(message, onChunk, onComplete, onError) {
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        onComplete();
+                        break;
+                    }
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.content) {
+                                    onChunk(data.content);
+                                }
+                                if (data.done) {
+                                    onComplete();
+                                    return;
+                                }
+                            } catch (parseError) {
+                                console.warn('Failed to parse SSE data:', line);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Streaming error:', error);
+                onError(error);
+            }
+        }
+        
+        // Function to get bot response from API (fallback non-streaming)
+        async function getBotResponse(message) {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error getting bot response:', error);
+                throw error;
+            }
+        }
+        
+        // Main function to send message with streaming
+        async function sendMessage() {
+            const input = $(".message-input");
+            const rawText = input.val().trim();
+            const sendButton = $("#send-button");
+            
+            if (!rawText) return;
+            
+            const timeString = getCurrentTimeString();
+            
+            // Disable input and button
+            input.prop('disabled', true);
+            sendButton.prop('disabled', true);
+            
+            // Add user message
+            addMessage(rawText, true, timeString);
+            input.val('');
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                // Create streaming bot message
+                const botMessageId = addStreamingMessage(false, timeString);
+                let fullResponse = "";
+                
+                // Remove typing indicator and start streaming
+                removeTypingIndicator();
+                
+                await getBotResponseStream(
+                    rawText,
+                    // onChunk - handle each streaming token
+                    (chunk) => {
+                        fullResponse += chunk;
+                        updateStreamingMessage(botMessageId, fullResponse);
+                    },
+                    // onComplete - streaming finished
+                    () => {
+                        console.log('Streaming completed');
+                        // Final markdown parsing
+                        updateStreamingMessage(botMessageId, fullResponse);
+                    },
+                    // onError - handle errors
+                    (error) => {
+                        console.error('Streaming error:', error);
+                        const errorMessage = "I'm having trouble answering your question right now. Please try again later.";
+                        updateStreamingMessage(botMessageId, errorMessage);
+                    }
+                );
+                
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // Remove typing indicator
+                removeTypingIndicator();
+                
+                // Show error message
+                const errorMessage = "I'm having trouble answering your question right now. Please try again later.";
+                $('#chat-body').append(`
+                    <div class="message-container bot-message error-message">
+                        <div class="message-bubble">
+                            ${errorMessage}
+                            <span class="message-time">${timeString}</span>
+                        </div>
+                    </div>
+                `);
+                scrollToBottom();
+            } finally {
+                // Re-enable input and button
+                input.prop('disabled', false);
+                sendButton.prop('disabled', false);
+                input.focus();
+            }
+        }
+        
+        // Event listeners
+        $(document).ready(function() {
+            // Send message on button click
+            $("#send-button").click(sendMessage);
+            
+            // Send message on Enter key press
+            $(".message-input").keypress(function(e) {
+                if (e.which === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Focus input on page load
+            $(".message-input").focus();
+        });
+    </script>
+</body>
+</html>
