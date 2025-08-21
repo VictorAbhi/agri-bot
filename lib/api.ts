@@ -53,7 +53,7 @@ class ApiService {
   private retryDelay = 1000
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://agri-bot-chfh.onrender.com"
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
