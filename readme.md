@@ -38,5 +38,5 @@ echo "PINECONE_API_KEY=your_pinecone_api_key" >> .env
 python app.py
 npm start
 ```
-## Screenshots
-
+## Screenshot
+<img width="1903" height="880" alt="Screenshot 2025-08-30 215243" src="https://github.com/user-attachments/assets/09598f25-3780-4c70-a376-f6f4449c7774" />
