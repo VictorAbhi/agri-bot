@@ -39,4 +39,4 @@ python app.py
 npm start
 ```
 ## Screenshot
-<img width="1903" height="880" alt="Screenshot 2025-08-30 215243" src="https://github.com/user-attachments/assets/09598f25-3780-4c70-a376-f6f4449c7774" />
+<img width="1916" height="940" alt="Screenshot 2025-08-30 215536" src="https://github.com/user-attachments/assets/b3a0cf98-1e5b-4b9f-90b6-fc9dcf82f755" />
