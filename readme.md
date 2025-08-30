@@ -1,37 +1,42 @@
-# Agri-bot 🌱🤖
+# AgriBot 🌱🤖
 
-A Retrieval-Augmented Generation (RAG) system for agricultural knowledge, focusing on crop diseases and treatments in the Indian subcontinent.
+**AgriBot** is a Retrieval-Augmented Generation (RAG) system for agricultural knowledge, focusing on crop diseases and treatments in the Indian subcontinent. It delivers real-time, markdown-formatted responses for farmers and agricultural professionals.
 
 ## Features
-
-- **Disease Diagnosis**: Identify crop diseases from symptoms
-- **Treatment Recommendations**: Get both chemical and organic solutions
-- **Region-Specific Advice**: Tailored recommendations for Indian subcontinents.
-- **Multilingual Support**: Works with English queries ( will be trying to work with Nepali as well)
+- **Disease Diagnosis:** Identify crop diseases from symptoms  
+- **Treatment Recommendations:** Generate the solutions from the knowledge base
+- **Real-Time Streaming:** Smooth, incremental AI responses via Server-Sent Events  
+- **Markdown Rendering:** Clean, formatted answers for symptoms and treatments  
+- **Multilingual Support:** Works with English queries (Nepali support planned)  
 
 ## Tech Stack
-
-- **Framework**: Flask 3.1.1
-- **AI Core**: 
-  - LangChain 0.3.26
-  - Gemini Flash
-  - Sentence Transformers 4.1.0
-- **Vector DB**: Pinecone
-- **PDF Processing**: PyPDF 5.6.1
+- **Framework:** Flask  
+- **AI Core:** LangChain, Google Gemini 1.5 Flash, Sentence Transformers (`all-MiniLM-L6-v2`)  
+- **Vector DB:** Pinecone  
+- **Front End:** HTML, JavaScript, jQuery, Marked.js  
+- **Environment:** python-dotenv  
 
 ## Installation
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/agri-bot.git
+cd agri-bot
 
-1. Clone the repository:
-   \`\`\`bash
-   git clone https://github.com/yourusername/agri-rag-system.git
-   cd agriculture-chatbot
+# Create Python virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-2. Make Python virtual environment
-3. Install package manager
-    \`\`\`
-    pip install uv
-    \`\`\`
-4. Install requirements
-    \`\`\`
-    uv add -r requirements.txt
-    \`\`\`
+# Install Node.js (v16+) and dependencies
+pip install -r requirements.txt
+npm install
+
+# Set environment variables
+echo "GOOGLE_API_KEY=your_google_api_key" > .env
+echo "PINECONE_API_KEY=your_pinecone_api_key" >> .env
+
+# Run the app
+python app.py
+npm start
+```
+## Screenshots
+
