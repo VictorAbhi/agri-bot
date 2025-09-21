@@ -10,11 +10,15 @@
 - **Multilingual Support:** Works with English queries (Nepali support planned)  
 
 ## Tech Stack
+### Backend
 - **Framework:** Flask  
 - **AI Core:** LangChain, Google Gemini 1.5 Flash, Sentence Transformers (`all-MiniLM-L6-v2`)  
 - **Vector DB:** Pinecone  
-- **Front End:** HTML, JavaScript, jQuery, Marked.js  
-- **Environment:** python-dotenv  
+- **Environment:** python-dotenv
+- **Backend as a service:** supabase → auth, database, storage, and  Realtime.
+
+### Frontend
+- HTML, Javascript, next js
 
 ## Installation
 ```bash
